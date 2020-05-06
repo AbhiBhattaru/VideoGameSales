@@ -13,7 +13,7 @@ rm(list = ls())
 # When in RStudio, dynamically sets working directory to path of this script
 if ("rstudioapi" %in% installed.packages()[, "Package"] & rstudioapi::isAvailable() & interactive())
     setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-videoGameSales <- read.csv("../videogamesales.csv")
+videoGameSales <- read.csv("videogamesales.csv")
 
 
 # Define UI for application that draws a histogram
