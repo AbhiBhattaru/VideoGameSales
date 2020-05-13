@@ -94,13 +94,13 @@ ui <- fluidPage(
     
     br(),
     
-    h2("Video game consoles"),
+    h3("Platforms"),
     
     p("To this day, numerous gaming consoles have been created by many companies, which often make newer generation consoles and continue to upgrade their games. 
       Let's see the top ten producers per platform"),
     sidebarLayout(
         sidebarPanel = sidebarPanel(
-            selectInput("Consoles1", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii", multiple = F)
+            selectInput("Consoles1", "Select a platform", choices = videoGameSales$Platform_full, selected = "Wii", multiple = F)
         ),
         mainPanel = mainPanel(
             plotOutput("ConsolePlot1")
@@ -111,8 +111,8 @@ ui <- fluidPage(
     p("Another interesting thing to study is how sales vary internationally per platform"),
     sidebarLayout(
       sidebarPanel = sidebarPanel(
-        selectizeInput("Consoles2", "Select up to 10 consoles", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T, options=list(maxItems = 10)),
-        radioButtons("country", "Select a region", 
+        selectizeInput("Consoles2", "Select up to 10 platforms", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T, options=list(maxItems = 10)),
+        radioButtons("Country1", "Select a region", 
                      choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales"))
       ),
       mainPanel = mainPanel(
@@ -122,7 +122,15 @@ ui <- fluidPage(
     br(),
     p("Everyone likes different types of games. Lets explore different genres of games and how they vary by console"),
     
-    
+    sidebarLayout(
+      sidebarPanel = sidebarPanel(
+        selectizeInput("Consoles3", "Select up to 3 platforms", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T, options=list(maxItems = 3)),
+        selectizeInput("Genre1", "Select up to 8 genres", choices = videoGameSales$Genre[videoGameSales$Genre!=''], selected = "Action", multiple = T, options = list(maxItems = 8))
+      ),
+      mainPanel = mainPanel(
+        plotOutput("ConsolePlot3")
+      )
+    )
     
 )
 
@@ -142,17 +150,26 @@ server <- function(input, output) {
     })
     
     output$ConsolePlot2 <-renderPlot({
-      req(input$Consoles2, input$country)
+      req(input$Consoles2, input$Country1)
       
       graph_data<- videoGameSales%>%
         filter(Platform_full %in% input$Consoles2)%>%
         select(Platform_full,NA_Sales, EU_Sales, JP_Sales, Other_Sales)
-      
-      match_frame <- data.frame(label= c("North America", "Europe", "Japan", "Other"), key = c('NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'))
-      match_frame[match_frame$label=="North America", 2]
         
-      ggplot(graph_data, aes(x=Platform_full, y=unlist(graph_data[input$country])))+
+      ggplot(graph_data, aes(x=Platform_full, y=unlist(graph_data[input$Country1])))+
         geom_violin()
+    })
+    
+    output$ConsolePlot3 <-renderPlot({
+      req(input$Consoles3, input$Genre1)
+      
+      graph_data<- videoGameSales%>%
+        filter(Platform_full %in% input$Consoles3, Genre %in% input$Genre1)%>%
+        select(Platform_full, Genre)%>%
+        group_by(Platform_full,Genre)%>%
+        tally()
+      ggplot(graph_data, aes(x=Genre, y=n, fill = Platform_full))+
+        geom_col(position = "dodge")
     })
 }
 
