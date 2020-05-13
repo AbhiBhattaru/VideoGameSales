@@ -8,6 +8,7 @@
 #
 
 library(shiny)
+library(shinyWidgets)
 library(tidyverse)
 library(taRifx)
 rm(list = ls())
@@ -99,7 +100,7 @@ ui <- fluidPage(
       Let's see the top ten producers per platform"),
     sidebarLayout(
         sidebarPanel = sidebarPanel(
-            selectInput("Consoles1", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii")
+            selectInput("Consoles1", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii", multiple = F)
         ),
         mainPanel = mainPanel(
             plotOutput("ConsolePlot1")
@@ -110,13 +111,17 @@ ui <- fluidPage(
     p("Another interesting thing to study is how sales vary internationally per platform"),
     sidebarLayout(
       sidebarPanel = sidebarPanel(
-        selectInput("Consoles2", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T),
-        radioButtons("country", "Select a region", choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales"))
+        selectizeInput("Consoles2", "Select up to 10 consoles", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T, options=list(maxItems = 10)),
+        radioButtons("country", "Select a region", 
+                     choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales"))
       ),
       mainPanel = mainPanel(
         plotOutput("ConsolePlot2")
       )
-    )
+    ),
+    br(),
+    p("Everyone likes different types of games. Lets explore different genres of games and how they vary by console"),
+    
     
     
 )
