@@ -15,11 +15,71 @@ rm(list = ls())
 if ("rstudioapi" %in% installed.packages()[, "Package"] & rstudioapi::isAvailable() & interactive())
     setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 videoGameSales <- read.csv("videogamesales.csv")
-platform_key<- remove.factors(data.frame(Platform = c('PS2', 'DS', 'PS3', 'Wii', 'X360', 'PSP', 'PS', 'PC', 'XB', 'GBA', 'GC', '3DS', 'PSV', 'PS4', 'N64', 'XOne', 'SNES', 'SAT', 'WiiU', '2600', 'GB', 'NES', 'DC', 'GEN', 'NG', 'SCD', 'WS', '3DO', 'TG16'),
-                          Platform_full = c('Play Station 2', 'Nintendo DS', 'Playstation 3', 'Wii', 'Xbox 360', 'Play Station Portable', 'Play Station', 'PC', 'Xbox', 'Game boy advanced', 'Game Cube', 'Nintendo 3DS', 'Playstation Vita', 'Playstation 4', 'Nintendo 64', 'Xbox One', 'SNES', 'Sega Saturn', 'WiiU', 'Atari 2600', 'Gameboy', 'NES', 'Dreamcast', 'Sega Genesis', 'Neo Geo', 'Sega CD', 'WonderSwan', '3DO', 'TurboGrafx-16')))
-videoGameSales<-remove.factors(videoGameSales)
+platform_key<- data.frame(Platform = factor(c('2600',
+                                              '3DO',
+                                              '3DS',
+                                              'DC',
+                                              'DS',
+                                              'GB',
+                                              'GBA',
+                                              'GC',
+                                              'GEN',
+                                              'GG',
+                                              'N64',
+                                              'NES',
+                                              'NG',
+                                              'PC',
+                                              'PCFX',
+                                              'PS',
+                                              'PS2',
+                                              'PS3',
+                                              'PS4',
+                                              'PSP',
+                                              'PSV',
+                                              'SAT',
+                                              'SCD',
+                                              'SNES',
+                                              'TG16',
+                                              'Wii',
+                                              'WiiU',
+                                              'WS',
+                                              'X360',
+                                              'XB',
+                                              'XOne')),
+                         Platform_full = factor(c("Atari 2600",
+                                                  "3DO",
+                                                  "Nintendo 3DS",
+                                                  "Dreamcast",
+                                                  "Nintendo DS",
+                                                  "Gameboy",
+                                                  "Game boy advanced",
+                                                  "Game Cube",
+                                                  "Sega Genesis",
+                                                  "Game Gear",
+                                                  "Nintendo 64",
+                                                  "NES",
+                                                  "Neo Geo",
+                                                  "PC",
+                                                  "PC-FX",
+                                                  "Play Station",
+                                                  "Play Station 2",
+                                                  "Playstation 3",
+                                                  "Playstation 4",
+                                                  "Play Station Portable",
+                                                  "Playstation Vita",
+                                                  "Sega Saturn",
+                                                  "Sega CD",
+                                                  "SNES",
+                                                  "TurboGrafx-16",
+                                                  "Wii",
+                                                  "WiiU",
+                                                  "WonderSwan",
+                                                  "Xbox 360",
+                                                  "Xbox",
+                                                  "Xbox One")))
+
+
 videoGameSales<- videoGameSales%>%left_join(platform_key, by="Platform")%>%filter(!is.na(Platform_full))
-#videoGameSales[is.na(videoGameSales)]="Not Avaliable"
 
  # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -36,14 +96,26 @@ ui <- fluidPage(
     h2("Video game consoles"),
     
     p("To this day, numerous gaming consoles have been created by many companies, which often make newer generation consoles and continue to upgrade their games. 
-      Let's see the top ten producers per console"),
+      Let's see the top ten producers per platform"),
     sidebarLayout(
         sidebarPanel = sidebarPanel(
-            selectInput("Consoles", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii")
+            selectInput("Consoles1", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii")
         ),
         mainPanel = mainPanel(
-            plotOutput("ConsolePlot")
+            plotOutput("ConsolePlot1")
         )
+    ),
+    
+    br(),
+    p("Another interesting thing to study is how sales vary internationally per platform"),
+    sidebarLayout(
+      sidebarPanel = sidebarPanel(
+        selectInput("Consoles2", "Select a console", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T),
+        radioButtons("country", "Select a region", choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales"))
+      ),
+      mainPanel = mainPanel(
+        plotOutput("ConsolePlot2")
+      )
     )
     
     
@@ -52,16 +124,30 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-    output$ConsolePlot <- renderPlot({
-      req(input$Consoles)
+    output$ConsolePlot1 <- renderPlot({
+      req(input$Consoles1)
       graph_data<- videoGameSales%>%
-        filter(Platform_full== paste(input$Consoles))%>%
+        filter(Platform_full== input$Consoles1)%>%
         group_by(Publisher)%>% 
         tally()%>%
         arrange(desc(n))%>%
         top_n(10)
-      ggplot(graph_data, aes(x=Publisher, y=n))+
+      ggplot(graph_data, aes(x=factor(Publisher, levels = graph_data$Publisher), y=n))+
         geom_col()
+    })
+    
+    output$ConsolePlot2 <-renderPlot({
+      req(input$Consoles2, input$country)
+      
+      graph_data<- videoGameSales%>%
+        filter(Platform_full %in% input$Consoles2)%>%
+        select(Platform_full,NA_Sales, EU_Sales, JP_Sales, Other_Sales)
+      
+      match_frame <- data.frame(label= c("North America", "Europe", "Japan", "Other"), key = c('NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'))
+      match_frame[match_frame$label=="North America", 2]
+        
+      ggplot(graph_data, aes(x=Platform_full, y=unlist(graph_data[input$country])))+
+        geom_violin()
     })
 }
 
