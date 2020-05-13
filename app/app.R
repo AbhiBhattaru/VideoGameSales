@@ -94,10 +94,12 @@ ui <- fluidPage(
     
     br(),
     
-    h3("Platforms"),
     
+    #section 1
+    h3("Platforms"),
     p("To this day, numerous gaming consoles have been created by many companies, which often make newer generation consoles and continue to upgrade their games. 
       Let's see the top ten producers per platform"),
+    
     sidebarLayout(
         sidebarPanel = sidebarPanel(
             selectInput("Consoles1", "Select a platform", choices = videoGameSales$Platform_full, selected = "Wii", multiple = F)
@@ -109,6 +111,7 @@ ui <- fluidPage(
     
     br(),
     p("Another interesting thing to study is how sales vary internationally per platform"),
+    
     sidebarLayout(
       sidebarPanel = sidebarPanel(
         selectizeInput("Consoles2", "Select up to 10 platforms", choices = videoGameSales$Platform_full, selected = "Wii", multiple = T, options=list(maxItems = 10)),
@@ -119,6 +122,7 @@ ui <- fluidPage(
         plotOutput("ConsolePlot2")
       )
     ),
+    
     br(),
     p("Everyone likes different types of games. Lets explore different genres of games and how they vary by console"),
     
@@ -129,6 +133,23 @@ ui <- fluidPage(
       ),
       mainPanel = mainPanel(
         plotOutput("ConsolePlot3")
+      )
+    ),
+    br(),
+    #section 2
+    h3("Individual Games"),
+    p("Though each platform has its nuances, they all share one thing in common: the games themselves. Lets look at certain games and study their performance cross-platform"),
+    p("First , lets look at which games were the most successful."),
+    
+    verticalLayout(
+      selectizeInput("GameSelect1", "Type in your favorite games to compare them. Choose up to 10", choices = subset(videoGameSales, Global_Sales>0 & Critic_Score>0, User_Score>0)$Name, selected = "Wii", multiple = T, options=list(maxItems = 10)),
+      selectInput("Filter1", "Choose a sale location", choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales", "Global Sales"="Global_Sales"), selected = "Global Sales"),
+      mainPanel(
+        plotOutput("GamePlot1")
+      ),
+      selectInput("Filter2", "Choose a rating type", choices = c("Critic Score" = "Critic_Score", "User Score"="User_Score"), selected = "Critic Score"),
+      mainPanel(
+        plotOutput("GamePlot2")
       )
     )
     
@@ -170,6 +191,32 @@ server <- function(input, output) {
         tally()
       ggplot(graph_data, aes(x=Genre, y=n, fill = Platform_full))+
         geom_col(position = "dodge")
+    })
+    
+    output$GamePlot1 <- renderPlot({
+      req(input$GameSelect1, input$Filter1)
+      
+      graph_data <- videoGameSales %>%
+        filter(Name %in% input$GameSelect1)%>%
+        select(Name, Platform_full, Global_Sales, NA_Sales, EU_Sales, JP_Sales, Other_Sales)%>%
+        group_by(Name, Platform_full)
+      
+      ggplot(graph_data, aes(x=Name, y=unlist(graph_data[input$Filter1]), fill = Platform_full))+
+        geom_col(position = "stack")
+        
+    })
+    
+    output$GamePlot2 <- renderPlot({
+      req(input$GameSelect1, input$Filter2)
+      
+      graph_data <- videoGameSales %>%
+        filter(Name %in% input$GameSelect1)%>%
+        select(Name, Platform_full, Critic_Score, Critic_Count, User_Score, User_Count)%>%
+        group_by(Name, Platform_full)
+      
+      ggplot(graph_data, aes(x=Name, y=unlist(graph_data[input$Filter2]), fill = Platform_full))+
+        geom_col(position = "dodge")+
+        geom_text(aes(label = Critic_Count), position = position_dodge(1.0))
     })
 }
 
