@@ -172,16 +172,8 @@ ui <- fluidPage(
     br(),
     
     h4("Concluding thoughts"),
-    p("I have shown you a lot of plots to tell you about video game sales. To end things, lets look at this final plot! Here is an animation of your favorite game
-      sales."),
-    sidebarLayout(
-      sidebarPanel = sidebarPanel(
-        selectizeInput("GameSelect1", "Type in your favorite games to compare them. Choose up to 10", choices = subset(videoGameSales, Global_Sales>0 & Critic_Score>0, User_Score>0)$Name, selected = "Wii", multiple = T, options=list(maxItems = 10)),
-      ),
-      mainPanel = mainPanel(
-        imageOutput("Animation")
-      )
-    )
+    p("I have shown you a lot of plots to tell you about video game sales. Hope you have learned a lot!"),
+    
     
 )
 
@@ -272,34 +264,6 @@ server <- function(input, output) {
         geom_line()
     })
     
-    output$Animation <- renderImage({
-      req(input$GameSelect1)
-      
-      progress <- shiny::Progress$new(max = 100)
-      progress$set(message = "Rendering", value = 0)
-      on.exit(progress$close())
-      
-      updateShinyProgress <- function(detail) {    
-        progress$inc(1, detail = detail)
-      }
-      
-      outfile <- tempfile(fileext='.gif')
-      
-      graph_data<- videoGameSales%>%
-        filter(Name %in% input$GameSelect1)%>%
-        select(Name, Platform_full, Global_Sales)
-        
-        
-      
-      p <- ggplot(graph_data, aes(x=Platform_full, y=Global_Sales))+
-        geom_bar()+
-        transition_states(Name)
-        
-      anim_save("outfile.gif", animate(p, update_progress = updateShinyProgress))
-      list(src = "outfile.gif",
-           contentType = 'image/gif'
-      )
-    })
     
     
     
