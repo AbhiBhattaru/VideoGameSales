@@ -11,6 +11,8 @@ library(shiny)
 library(shinyWidgets)
 library(tidyverse)
 library(taRifx)
+library(gganimate)
+library(gifski)
 rm(list = ls())
 # When in RStudio, dynamically sets working directory to path of this script
 if ("rstudioapi" %in% installed.packages()[, "Package"] & rstudioapi::isAvailable() & interactive())
@@ -81,6 +83,7 @@ platform_key<- data.frame(Platform = factor(c('2600',
 
 
 videoGameSales<- videoGameSales%>%left_join(platform_key, by="Platform")%>%filter(!is.na(Platform_full))
+videoGameSales$Year_of_Release<- as.numeric(as.character(videoGameSales$Year_of_Release))
 
  # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -151,6 +154,33 @@ ui <- fluidPage(
       mainPanel(
         plotOutput("GamePlot2")
       )
+    ),
+    
+    br(),
+    h3("Time"),
+    p("Perhaps one of the most interesting things to think about is how videogame sales change overtime. First, lets see how many games got released each year. Note that
+      this dataset was published in 2014 and has been slightly been updated since then. Thus, the figure shows less games released in recent years but this may not be
+      factually correct. Nonetheless, we will study the data"),
+    verticalLayout(
+      sliderInput("Year1", "Choose the years you want to study", min = 1980, max = 2016, value = c(1980,2016)),
+      selectInput("Year2", "Select a genre", choices = videoGameSales$Genre[videoGameSales$Genre!=''], selected = "Action"),
+      checkboxGroupInput("Year3", "Choose a sale location", choices = c("North America" = "genreNAsale", "Europe"="genreEUsale", "Japan"="genreJPsale", "Other"="genreothersale")),
+      plotOutput("YearPlot1"),
+      br(),
+      plotOutput("YearPlot2")
+    ),
+    br(),
+    
+    h4("Concluding thoughts"),
+    p("I have shown you a lot of plots to tell you about video game sales. To end things, lets look at this final plot! Here is an animation of your favorite game
+      sales."),
+    sidebarLayout(
+      sidebarPanel = sidebarPanel(
+        selectizeInput("GameSelect1", "Type in your favorite games to compare them. Choose up to 10", choices = subset(videoGameSales, Global_Sales>0 & Critic_Score>0, User_Score>0)$Name, selected = "Wii", multiple = T, options=list(maxItems = 10)),
+      ),
+      mainPanel = mainPanel(
+        imageOutput("Animation")
+      )
     )
     
 )
@@ -218,6 +248,63 @@ server <- function(input, output) {
         geom_col(position = "dodge")+
         geom_text(aes(label = Critic_Count), position = position_dodge(1.0))
     })
+    
+    output$YearPlot1 <- renderPlot({
+      graph_data <- videoGameSales%>%
+        filter(Year_of_Release>=input$Year1[1],Year_of_Release<=input$Year1[2])%>%
+        group_by(Year_of_Release)%>%
+        tally()
+
+      ggplot(graph_data, aes(x=Year_of_Release,y=n))+
+        geom_histogram(stat="identity")
+    })
+    
+    output$YearPlot2 <- renderPlot({
+      req(input$Year2, input$Year3)
+      graph_data <- videoGameSales%>%
+        filter(Year_of_Release>=input$Year1[1],Year_of_Release<=input$Year1[2], Genre %in% input$Year2)%>%
+        group_by(Year_of_Release,Genre)%>%
+        mutate(genretotsale = sum(Global_Sales), genreNAsale = sum(NA_Sales), genreEUsale = sum(EU_Sales), genreJPsale = sum(JP_Sales), genreothersale = sum(Other_Sales))%>%
+        pivot_longer(cols = c("genretotsale", "genreNAsale", "genreEUsale", "genreJPsale", "genreothersale"), names_to = "Location", values_to = "Sale")%>%
+        filter(Location==input$Year3 | Location == "genretotsale")
+      
+      ggplot(graph_data, aes(x=Year_of_Release,y=Sale, col = Location))+
+        geom_line()
+    })
+    
+    output$Animation <- renderImage({
+      req(input$GameSelect1)
+      
+      progress <- shiny::Progress$new(max = 100)
+      progress$set(message = "Rendering", value = 0)
+      on.exit(progress$close())
+      
+      updateShinyProgress <- function(detail) {    
+        progress$inc(1, detail = detail)
+      }
+      
+      outfile <- tempfile(fileext='.gif')
+      
+      graph_data<- videoGameSales%>%
+        filter(Name %in% input$GameSelect1)%>%
+        select(Name, Platform_full, Global_Sales)
+        
+        
+      
+      p <- ggplot(graph_data, aes(x=Platform_full, y=Global_Sales))+
+        geom_bar()+
+        transition_states(Name)
+        
+      anim_save("outfile.gif", animate(p, update_progress = updateShinyProgress))
+      list(src = "outfile.gif",
+           contentType = 'image/gif'
+      )
+    })
+    
+    
+    
+      
+      
 }
 
 # Run the application 
