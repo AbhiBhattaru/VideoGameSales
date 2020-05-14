@@ -13,6 +13,8 @@ library(tidyverse)
 library(taRifx)
 library(gganimate)
 library(gifski)
+library(ggpubr)
+library(lubridate)
 rm(list = ls())
 # When in RStudio, dynamically sets working directory to path of this script
 if ("rstudioapi" %in% installed.packages()[, "Package"] & rstudioapi::isAvailable() & interactive())
@@ -84,12 +86,15 @@ platform_key<- data.frame(Platform = factor(c('2600',
 
 videoGameSales<- videoGameSales%>%left_join(platform_key, by="Platform")%>%filter(!is.na(Platform_full))
 videoGameSales$Year_of_Release<- as.numeric(as.character(videoGameSales$Year_of_Release))
+theme_set(theme_classic2())
 
  # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
     titlePanel("Videogame analysis"),
+    p("By Abhi Bhattaru"),
+    textOutput("Date"), br(),
 
     p("Video games are often a great equalizer for the world. Whether it be your favorite first person shooter game or exploring an unknown world in Minecraft, 
       there is a videogame for everyone. That is why it becomes such an intersting topic to explore! In this app we can learn a lot about recent trends of video game
@@ -105,7 +110,7 @@ ui <- fluidPage(
     
     sidebarLayout(
         sidebarPanel = sidebarPanel(
-            selectInput("Consoles1", "Select a platform", choices = videoGameSales$Platform_full, selected = "Wii", multiple = F)
+            selectizeInput("Consoles1", "Select a platform", choices = videoGameSales$Platform_full, selected = "Wii")
         ),
         mainPanel = mainPanel(
             plotOutput("ConsolePlot1")
@@ -146,11 +151,11 @@ ui <- fluidPage(
     
     verticalLayout(
       selectizeInput("GameSelect1", "Type in your favorite games to compare them. Choose up to 10", choices = subset(videoGameSales, Global_Sales>0 & Critic_Score>0, User_Score>0)$Name, selected = "Wii", multiple = T, options=list(maxItems = 10)),
-      selectInput("Filter1", "Choose a sale location", choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales", "Global Sales"="Global_Sales"), selected = "Global Sales"),
+        selectInput("Filter1", "Choose a sale location", choices = c("North America" = "NA_Sales", "Europe"="EU_Sales", "Japan"="JP_Sales", "Other"="Other_Sales", "Global Sales"="Global_Sales"), selected = "Global Sales"),
+        selectInput("Filter2", "Choose a rating type (note: Number in plot shows how many ratings were avaliable", choices = c("Critic Score" = "Critic_Score", "User Score"="User_Score"), selected = "Critic Score"),
       mainPanel(
         plotOutput("GamePlot1")
-      ),
-      selectInput("Filter2", "Choose a rating type", choices = c("Critic Score" = "Critic_Score", "User Score"="User_Score"), selected = "Critic Score"),
+      ),br(),
       mainPanel(
         plotOutput("GamePlot2")
       )
@@ -180,6 +185,11 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+  
+    output$Date <- renderText({
+      paste('Today\'s Date:',today())
+    })
+  
     output$ConsolePlot1 <- renderPlot({
       req(input$Consoles1)
       graph_data<- videoGameSales%>%
@@ -189,7 +199,10 @@ server <- function(input, output) {
         arrange(desc(n))%>%
         top_n(10)
       ggplot(graph_data, aes(x=factor(Publisher, levels = graph_data$Publisher), y=n))+
-        geom_col()
+        geom_col(aes(fill = factor(Publisher, levels = graph_data$Publisher)))+
+        labs(y="Number of games", x="Publisher")+
+        theme(legend.position = "none", axis.text.x=element_text(angle=50,hjust=1))
+        
     })
     
     output$ConsolePlot2 <-renderPlot({
@@ -199,8 +212,11 @@ server <- function(input, output) {
         filter(Platform_full %in% input$Consoles2)%>%
         select(Platform_full,NA_Sales, EU_Sales, JP_Sales, Other_Sales)
         
-      ggplot(graph_data, aes(x=Platform_full, y=unlist(graph_data[input$Country1])))+
-        geom_violin()
+      ggplot(graph_data, aes(fill = Platform_full, x=Platform_full, y=unlist(graph_data[input$Country1])))+
+        geom_violin()+
+        labs(x="Platform", y="Copies sold (millions of units)")+
+        theme(legend.position = "none")
+        
     })
     
     output$ConsolePlot3 <-renderPlot({
@@ -212,7 +228,9 @@ server <- function(input, output) {
         group_by(Platform_full,Genre)%>%
         tally()
       ggplot(graph_data, aes(x=Genre, y=n, fill = Platform_full))+
-        geom_col(position = "dodge")
+        labs(x="Genre", y="Number of Games", fill = "Platform")+
+        geom_col(position = "dodge")+
+        theme(legend.position = "top")
     })
     
     output$GamePlot1 <- renderPlot({
@@ -224,7 +242,9 @@ server <- function(input, output) {
         group_by(Name, Platform_full)
       
       ggplot(graph_data, aes(x=Name, y=unlist(graph_data[input$Filter1]), fill = Platform_full))+
-        geom_col(position = "stack")
+        geom_col(position = "stack")+
+        labs(x="", y="Copies sold (millions of units)", fill = "Platform")+
+        theme(axis.text.x=element_blank(), legend.position = "top")
         
     })
     
@@ -238,7 +258,9 @@ server <- function(input, output) {
       
       ggplot(graph_data, aes(x=Name, y=unlist(graph_data[input$Filter2]), fill = Platform_full))+
         geom_col(position = "dodge")+
-        geom_text(aes(label = Critic_Count), position = position_dodge(1.0))
+        geom_text(aes(label = Critic_Count), color = "white", position = position_dodge(width = .9), vjust=1.5)+
+        labs(x="Game", y="Score", fill = "Platform")+
+        theme(axis.text.x=element_text(angle=50,hjust=1), legend.position = 'none')
     })
     
     output$YearPlot1 <- renderPlot({
@@ -247,8 +269,10 @@ server <- function(input, output) {
         group_by(Year_of_Release)%>%
         tally()
 
-      ggplot(graph_data, aes(x=Year_of_Release,y=n))+
-        geom_histogram(stat="identity")
+      ggplot(graph_data, aes(x=Year_of_Release,y=n, fill = Year_of_Release))+
+        geom_histogram(stat="identity")+
+        labs( y="Number of games", x="Year of Release")+
+        theme(legend.position = "none")
     })
     
     output$YearPlot2 <- renderPlot({
@@ -261,14 +285,12 @@ server <- function(input, output) {
         filter(Location==input$Year3 | Location == "genretotsale")
       
       ggplot(graph_data, aes(x=Year_of_Release,y=Sale, col = Location))+
-        geom_line()
+        geom_line()+
+        labs(x="Year of Release", y="Number of games")+
+        scale_color_discrete(breaks = c("genretotsale", "genreNAsale", "genreEUsale", "genreJPsale", "genreothersale"),
+                             labels = c("Total sales", "North America", "Europe", "Japan", "Other regions"))+
+        theme(legend.position = "bottom")
     })
-    
-    
-    
-    
-      
-      
 }
 
 # Run the application 
