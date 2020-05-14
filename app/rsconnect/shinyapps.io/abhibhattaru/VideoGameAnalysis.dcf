@@ -5,8 +5,9 @@ account: abhibhattaru
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2252655
-bundleId: 3143825
+bundleId: 3145480
 url: https://abhibhattaru.shinyapps.io/VideoGameAnalysis/
-when: 1589401145.91083
+when: 1589430250.6617
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: outfile.gif|test.R
